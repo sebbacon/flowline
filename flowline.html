@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flowline — Model Work Pipeline</title>
+  <style>
+    :root {
+      --ink: #17231f;
+      --muted: #68736e;
+      --paper: #f7f5ef;
+      --panel: #fffefa;
+      --line: #dcded6;
+      --green: #245847;
+      --green-2: #dce9df;
+      --orange: #ec7b3c;
+      --orange-soft: #f8c5a1;
+      --grey: #777b78;
+      --grey-soft: #d6d7d3;
+      --danger: #bc3f36;
+      --unit: 48px;
+      --radius: 18px;
+      --shadow: 0 18px 50px rgba(34, 52, 45, .09);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 1060px;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 4%, rgba(236,123,60,.09), transparent 26%),
+        linear-gradient(180deg, #fbfaf6, var(--paper));
+      font: 14px/1.4 Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+
+    .app { max-width: 1500px; margin: 0 auto; padding: 28px 34px 42px; }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand-mark {
+      width: 42px; height: 42px; border-radius: 13px;
+      display: grid; place-items: center;
+      color: white; background: var(--green);
+      box-shadow: 0 8px 20px rgba(36,88,71,.22);
+    }
+    .brand-mark svg { width: 25px; }
+    h1 { margin: 0; font: 800 23px/1 Inter, ui-sans-serif, sans-serif; letter-spacing: -.03em; }
+    .subtitle { color: var(--muted); margin-top: 5px; font-size: 13px; }
+    .storage-note { color: #929a95; margin-top: 3px; font-size: 11px; }
+    .actions { display: flex; gap: 9px; align-items: center; }
+    .view-select {
+      width: auto; min-width: 126px; padding: 9px 31px 9px 11px; border: 1px solid var(--line);
+      border-radius: 11px; background-color: rgba(255,255,255,.75); font-weight: 700; cursor: pointer;
+    }
+
+    .btn {
+      border: 1px solid var(--line); background: rgba(255,255,255,.75);
+      border-radius: 11px; padding: 9px 13px; cursor: pointer; font-weight: 600;
+      transition: .18s ease; display: inline-flex; align-items: center; gap: 7px;
+    }
+    .btn:hover { border-color: #aeb6af; transform: translateY(-1px); }
+    .btn.primary { background: var(--green); border-color: var(--green); color: white; }
+    .btn.primary:hover { background: #174838; }
+    .btn svg { width: 16px; height: 16px; }
+
+    .capacity-summary {
+      flex: 0 0 auto; padding: 8px 11px; border-radius: 10px; color: var(--green);
+      background: var(--green-2); font-size: 12px; font-weight: 800; white-space: nowrap;
+    }
+
+    .workspace { display: grid; grid-template-columns: minmax(430px, .9fr) minmax(580px, 1.1fr); gap: 18px; align-items: stretch; }
+    [hidden] { display: none !important; }
+    .panel {
+      background: var(--panel); border: 1px solid #e1e2db; border-radius: var(--radius);
+      box-shadow: var(--shadow); overflow: hidden; min-height: 670px;
+    }
+    .panel-head {
+      padding: 20px 22px 15px; display: flex; justify-content: space-between; gap: 20px; align-items: flex-start;
+    }
+    .eyebrow { font-size: 11px; color: var(--green); text-transform: uppercase; letter-spacing: .12em; font-weight: 800; margin-bottom: 6px; }
+    h2 { margin: 0; font: 800 18px/1.25 Inter, ui-sans-serif, sans-serif; letter-spacing: -.02em; }
+    .helper { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+    .legend { display: flex; gap: 12px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .legend span { display: flex; align-items: center; gap: 5px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); }
+    .dot.grey { background: var(--grey); }
+    .funnel-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+    .system-load {
+      min-width: 132px; padding: 9px 11px; border-radius: 11px; text-align: right;
+      color: var(--green); background: var(--green-2); border: 1px solid rgba(36,88,71,.09);
+    }
+    .system-load.over { color: #933c22; background: #f9ddca; border-color: rgba(147,60,34,.12); }
+    .system-load-value { font-size: 18px; line-height: 1; font-weight: 800; }
+    .system-load-label { margin-top: 4px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+
+    .intake-wrap { padding: 4px 22px 24px; }
+    .intake {
+      position: relative; min-height: 570px; display: flex; flex-direction: column; align-items: center;
+    }
+    .hopper-bin {
+      position: relative; z-index: 2; width: 100%; min-height: 444px; padding: 18px;
+      border: 1px solid #e5c4a9; border-radius: 17px 17px 26px 26px;
+      background:
+        linear-gradient(rgba(255,255,255,.3), rgba(255,255,255,0)),
+        #fcf0e4;
+      box-shadow: inset 0 -12px 28px rgba(183,109,59,.04), 0 8px 22px rgba(90,63,45,.05);
+    }
+    .hopper-bin::before {
+      content: ""; position: absolute; inset: 8px; z-index: -1; border: 1px dashed rgba(183,109,59,.2);
+      border-radius: 11px 11px 20px 20px; pointer-events: none;
+    }
+    .hopper-items { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; align-items: start; }
+    .hopper-items .card { height: calc(var(--units) * var(--unit)); min-height: 0; align-self: start; }
+    .hopper-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 14px; }
+    .hopper-actions .btn { justify-content: center; border-style: dashed; background: rgba(255,255,255,.46); }
+    .hopper-actions .project { color: #875233; }
+    .hopper-actions .overhead { color: #545b57; }
+    .hopper-chute {
+      position: relative; z-index: 1; width: 174px; height: 64px; margin-top: -2px;
+      background: linear-gradient(180deg, #f7ddc9, #f3c69f);
+      clip-path: polygon(14% 0, 86% 0, 62% 100%, 38% 100%);
+      filter: drop-shadow(0 5px 5px rgba(99,68,47,.08)); pointer-events: none;
+    }
+    .flow-cue {
+      display: flex; flex-direction: column; align-items: center; gap: 3px; margin-top: 7px;
+      color: #9a6c4c; font-size: 10px; font-weight: 800; letter-spacing: .12em; pointer-events: none;
+    }
+    .flow-arrow { font-size: 20px; line-height: 1; font-weight: 400; }
+    .intake.drag-over .hopper-bin { border-color: var(--green); box-shadow: inset 0 0 0 3px rgba(36,88,71,.08); }
+
+    .card {
+      --units: 1;
+      min-height: calc(var(--units) * var(--unit));
+      border-radius: 10px; padding: 10px 34px 10px 12px; position: relative;
+      display: flex; align-items: center; border: 1px solid rgba(99,70,50,.18);
+      background: var(--orange-soft); color: #542e19; font-weight: 700; line-height: 1.2;
+      box-shadow: 0 4px 10px rgba(107,65,37,.08); user-select: none;
+    }
+    .card[draggable="true"] { cursor: grab; }
+    .card[draggable="true"]:active { cursor: grabbing; }
+    .card.grey { background: var(--grey-soft); color: #353a37; border-color: #b4b7b3; }
+    .card.dragging { opacity: .4; }
+    .card-title { overflow-wrap: anywhere; }
+    .units-chip {
+      position: absolute; right: 8px; top: 8px; min-width: 19px; height: 19px; border-radius: 6px;
+      display: grid; place-items: center; background: rgba(255,255,255,.62); font-size: 10px; font-weight: 800;
+    }
+    .lock { position: absolute; right: 8px; bottom: 7px; font-size: 10px; opacity: .65; }
+
+    .tubes-panel { display: flex; flex-direction: column; }
+    .tubes { flex: 1; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(180px, 1fr); gap: 17px; padding: 8px 22px 24px; overflow-x: auto; }
+    .tube-column { display: flex; flex-direction: column; min-width: 0; }
+    .tube-top { padding: 0 3px 9px; }
+    .tube-title-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .tube-name {
+      border: 0; background: transparent; width: calc(100% - 34px); padding: 2px 0;
+      font: 700 14px/1.2 Inter, ui-sans-serif, sans-serif; color: var(--ink); text-overflow: ellipsis;
+    }
+    .tube-name:focus { outline: 0; box-shadow: 0 2px var(--green); }
+    .tube-remove {
+      flex: 0 0 auto; width: 24px; height: 24px; padding: 0; display: grid; place-items: center;
+      border: 0; border-radius: 7px; background: transparent; color: #909993; cursor: pointer; font-size: 17px;
+    }
+    .tube-remove:hover { color: var(--danger); background: #f8e6e3; }
+    .tube-remove:disabled { opacity: .25; cursor: not-allowed; background: transparent; }
+    .capacity-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 4px; }
+    .capacity { color: var(--muted); font-size: 11px; }
+    .capacity strong { color: var(--green); }
+    .capacity.full strong { color: var(--danger); }
+    .height-controls { display: inline-flex; align-items: center; gap: 2px; }
+    .height-controls button {
+      width: 20px; height: 20px; padding: 0; border: 1px solid #d7dbd5; border-radius: 6px;
+      background: white; color: #53605a; cursor: pointer; line-height: 1;
+    }
+    .height-controls button:hover { border-color: var(--green); color: var(--green); }
+    .height-controls button:disabled { opacity: .35; cursor: not-allowed; }
+
+    .tube-shell {
+      height: calc(var(--capacity) * var(--unit) + 24px); position: relative; margin-top: auto;
+      border: 2px solid #34483f; border-top: 0; border-radius: 0 0 24px 24px;
+      padding: 10px; display: flex; flex-direction: column; justify-content: flex-end; gap: 4px;
+      background:
+        repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--unit) - 1px), rgba(39,64,53,.09) calc(var(--unit) - 1px), rgba(39,64,53,.09) var(--unit)),
+        linear-gradient(90deg, rgba(220,233,223,.35), rgba(255,255,255,.25));
+      transition: .18s ease;
+    }
+    .tube-shell::before, .tube-shell::after {
+      content: ""; position: absolute; top: -9px; width: 18px; height: 2px; background: #34483f;
+    }
+    .tube-shell::before { left: -2px; }
+    .tube-shell::after { right: -2px; }
+    .tube-shell.drag-over { background-color: #e7f0e9; box-shadow: inset 0 0 0 3px rgba(36,88,71,.13); }
+    .tube-shell.invalid { animation: shake .25s ease; border-color: var(--danger); }
+    @keyframes shake { 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
+    .tube-shell .card { flex: 0 0 calc(var(--units) * var(--unit) - 4px); min-height: 0; font-size: 11px; }
+    .empty-tube { position: absolute; inset: 0; display: grid; place-items: center; color: #a1aaa5; font-size: 11px; pointer-events: none; }
+
+    .add-overhead {
+      margin-top: 10px; width: 100%; justify-content: center; border-style: dashed; color: #59645f; background: transparent;
+    }
+
+    .modal-backdrop {
+      position: fixed; inset: 0; z-index: 10; display: none; place-items: center;
+      background: rgba(18,28,24,.35); backdrop-filter: blur(4px);
+    }
+    .modal-backdrop.open { display: grid; }
+    .modal { width: 410px; background: #fffefa; border-radius: 18px; padding: 23px; box-shadow: 0 28px 80px rgba(17,29,24,.25); }
+    .modal h3 { margin: 0 0 17px; font: 800 18px Inter,ui-sans-serif,sans-serif; }
+    .field { margin-bottom: 14px; }
+    label { display: block; color: #59645f; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+    input[type="text"], select {
+      width: 100%; border: 1px solid #ccd1cb; border-radius: 10px; padding: 10px 11px; background: white;
+    }
+    input:focus, select:focus { outline: 2px solid rgba(36,88,71,.18); border-color: var(--green); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+
+    .menu {
+      position: fixed; z-index: 20; display: none; width: 170px; background: white; border: 1px solid var(--line);
+      border-radius: 11px; padding: 6px; box-shadow: 0 14px 35px rgba(20,31,26,.2);
+    }
+    .menu.open { display: block; }
+    .menu button { width: 100%; border: 0; background: transparent; text-align: left; padding: 8px 9px; border-radius: 7px; cursor: pointer; font-size: 12px; }
+    .menu button:hover { background: #f2f3ef; }
+    .menu button.danger { color: var(--danger); }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 18px); opacity: 0; pointer-events: none;
+      z-index: 30; background: #17231f; color: white; padding: 10px 15px; border-radius: 10px; font-weight: 600;
+      transition: .22s ease;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    .table-view { background: var(--panel); border: 1px solid #e1e2db; border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .table-view .panel-head { align-items: center; }
+    .table-wrap { padding: 0 22px 25px; overflow-x: auto; }
+    .data-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+    .data-table th { padding: 10px 12px; color: var(--muted); background: #f3f4ef; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+    .data-table th:first-child { border-left: 1px solid var(--line); border-radius: 10px 0 0 0; }
+    .data-table th:last-child { border-right: 1px solid var(--line); border-radius: 0 10px 0 0; text-align: right; }
+    .data-table td { padding: 11px 12px; border-bottom: 1px solid #e8e9e4; background: white; vertical-align: middle; }
+    .data-table td:first-child { border-left: 1px solid var(--line); }
+    .data-table td:last-child { border-right: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; }
+    .data-table .tube-cell { width: 22%; font-weight: 800; color: var(--green); vertical-align: top; padding-top: 14px; }
+    .data-table .units-cell { width: 80px; text-align: right; font-variant-numeric: tabular-nums; }
+    .data-table .unused-row td { color: var(--muted); background: #fafaf7; font-style: italic; }
+    .data-table .unused-row .type-pill { font-style: normal; }
+    .data-table .total-row td { background: var(--green-2); font-weight: 800; border-bottom: 8px solid var(--panel); }
+    .data-table .total-row td:first-child { border-left-color: var(--green-2); }
+    .data-table .total-row td:last-child { border-right-color: var(--green-2); }
+    .type-pill { display: inline-flex; padding: 3px 8px; border-radius: 999px; background: #f9dfcc; color: #814521; font-size: 10px; font-weight: 800; white-space: nowrap; }
+    .type-pill.grey { background: #e2e4e1; color: #4c524e; }
+    .type-pill.free { background: var(--green-2); color: var(--green); }
+    .table-section-title { margin: 26px 0 10px; font: 800 14px Inter,ui-sans-serif,sans-serif; }
+    .table-section-title:first-child { margin-top: 2px; }
+
+    @media (max-width: 1150px) {
+      .app { padding-inline: 20px; }
+      .workspace { grid-template-columns: 410px 1fr; }
+      .tubes { gap: 11px; padding-inline: 15px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3v11.5a5 5 0 0 0 10 0V3M5 3h14M8 10h8"/><path d="M9 15h6" opacity=".55"/></svg>
+        </div>
+        <div><h1>Flowline</h1><div class="subtitle">Model work pipeline · October 2026–March 2027</div><div class="storage-note">Saved in this browser and encoded in the URL · Copy the link or export a backup.</div></div>
+      </div>
+      <div class="actions">
+        <select class="view-select" id="viewMode" aria-label="View mode">
+          <option value="visual">Visual view</option>
+          <option value="table">Table view</option>
+        </select>
+        <button class="btn" id="copyLinkBtn">Copy link</button>
+        <button class="btn" id="importBtn">Import</button>
+        <button class="btn" id="exportBtn">Export</button>
+        <input type="file" id="importInput" accept="application/json,.json" hidden>
+        <button class="btn" id="resetBtn" title="Restore the empty starting board">Reset board</button>
+        <button class="btn" id="addTubeBtn">+ Add tube</button>
+        <button class="btn primary" id="addBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Add work
+        </button>
+      </div>
+    </header>
+
+    <section class="workspace" id="visualView">
+      <article class="panel">
+        <div class="panel-head">
+          <div><div class="eyebrow">Work funnel</div><h2>Ready to schedule</h2><div class="helper">Drag any work into a tube with room.</div></div>
+          <div class="funnel-meta">
+            <div class="system-load" id="systemLoad" title="All work units divided by total tube capacity; assumes movable work is reasonably packed across tubes."><div class="system-load-value" id="systemLoadPct">0%</div><div class="system-load-label" id="systemLoadLabel">estimated system load</div></div>
+            <div class="legend"><span><i class="dot"></i>Project</span><span><i class="dot grey"></i>Overhead</span></div>
+          </div>
+        </div>
+        <div class="intake-wrap">
+          <div class="intake" id="pool" data-zone="pool">
+            <div class="hopper-bin">
+              <div class="hopper-items" id="poolItems"></div>
+              <div class="hopper-actions"><button class="btn project" id="addProjectBtn">+ Add project work</button><button class="btn overhead" id="addOverheadBtn">+ Add overhead work</button></div>
+            </div>
+            <div class="hopper-chute" aria-hidden="true"></div>
+            <div class="flow-cue" aria-hidden="true"><span>READY TO SCHEDULE</span><span class="flow-arrow">↓</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel tubes-panel">
+        <div class="panel-head">
+          <div><div class="eyebrow">Current capacity</div><h2>Delivery tubes</h2><div class="helper">Use −/+ to resize. Grey overhead is grouped below orange work.</div></div>
+          <div class="capacity-summary" id="capacityPct">0% capacity used</div>
+        </div>
+        <div class="tubes" id="tubes"></div>
+      </article>
+    </section>
+
+    <section class="table-view" id="tableView" hidden>
+      <div class="panel-head">
+        <div><div class="eyebrow">Capacity table</div><h2>Work allocation</h2><div class="helper">Each tube includes unused capacity and totals 100%.</div></div>
+        <div class="capacity-summary" id="tableCapacityPct">0% capacity used</div>
+      </div>
+      <div class="table-wrap" id="tableContent"></div>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <form class="modal" id="workForm">
+      <h3 id="modalTitle">Add work</h3>
+      <div class="field"><label for="workTitle">Work item</label><input id="workTitle" type="text" maxlength="60" required placeholder="e.g. Admissions model refresh"></div>
+      <div class="field"><label for="workUnits">Size</label><select id="workUnits"><option value="1">1 unit · Small</option><option value="2">2 units · Medium</option><option value="3">3 units · Large</option><option value="5">5 units · Extra large</option></select></div>
+      <div class="field" id="typeField"><label for="workType">Type</label><select id="workType"><option value="orange">Project work</option><option value="grey">Overhead / maintenance</option></select></div>
+      <div class="field" id="locationField"><label for="workLocation">Starting location</label><select id="workLocation"></select></div>
+      <div class="modal-actions"><button type="button" class="btn" id="cancelBtn">Cancel</button><button type="submit" class="btn primary">Save work</button></div>
+    </form>
+  </div>
+
+  <div class="menu" id="itemMenu" role="menu">
+    <button data-action="rename">Rename</button>
+    <button data-action="return">Move back to hopper</button>
+    <button data-action="size-1">Set to 1 unit</button>
+    <button data-action="size-2">Set to 2 units</button>
+    <button data-action="size-3">Set to 3 units</button>
+    <button data-action="size-5">Set to 5 units</button>
+    <button class="danger" data-action="remove">Remove</button>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    const CAPACITY = 8;
+    const defaults = {
+      tubes: [
+        { id: 'tube-1', name: 'Delivery tube 1', capacity: 10 }
+      ],
+      items: []
+    };
+
+    let state = loadState();
+    let draggedId = null;
+    let activeMenuId = null;
+    let editingId = null;
+    let forcedLocation = null;
+    let forcedType = null;
+
+    const $ = s => document.querySelector(s);
+    const poolItems = $('#poolItems');
+    const tubesEl = $('#tubes');
+    const modal = $('#modalBackdrop');
+    const menu = $('#itemMenu');
+
+    function clone(obj) { return JSON.parse(JSON.stringify(obj)); }
+    function encodeBoard(board) {
+      const bytes = new TextEncoder().encode(JSON.stringify(board));
+      let binary = '';
+      for (const byte of bytes) binary += String.fromCharCode(byte);
+      return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    }
+    function decodeBoard(encoded) {
+      const base64 = encoded.replace(/-/g,'+').replace(/_/g,'/') + '='.repeat((4-encoded.length%4)%4);
+      const binary = atob(base64);
+      const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+      return validatedState(JSON.parse(new TextDecoder().decode(bytes)));
+    }
+    function stateFromUrl() {
+      const encoded = new URLSearchParams(location.hash.slice(1)).get('board');
+      return encoded ? decodeBoard(encoded) : null;
+    }
+    function loadState() {
+      try {
+        const shared = stateFromUrl();
+        if (shared) return shared;
+      } catch {}
+      try {
+        const loaded = JSON.parse(localStorage.getItem('flowline-state')) || clone(defaults);
+        loaded.tubes.forEach(t => { if (!Number.isFinite(t.capacity)) t.capacity = 8; });
+        return loaded;
+      }
+      catch { return clone(defaults); }
+    }
+    function save() {
+      localStorage.setItem('flowline-state', JSON.stringify(state));
+      const url = new URL(location.href);
+      url.hash = `board=${encodeBoard(state)}`;
+      history.replaceState(null, '', url);
+    }
+    function validatedState(input) {
+      if (!input || !Array.isArray(input.tubes) || !Array.isArray(input.items) || !input.tubes.length) throw new Error('A board needs at least one tube');
+      const tubeIds = new Set();
+      const tubes = input.tubes.map((tube,index) => {
+        if (!tube || typeof tube.id !== 'string' || !tube.id || tubeIds.has(tube.id)) throw new Error(`Tube ${index+1} has an invalid or duplicate ID`);
+        if (typeof tube.name !== 'string' || !tube.name.trim()) throw new Error(`Tube ${index+1} needs a name`);
+        if (!Number.isInteger(tube.capacity) || tube.capacity < 1 || tube.capacity > 100) throw new Error(`“${tube.name}” has an invalid capacity`);
+        tubeIds.add(tube.id);
+        return { id:tube.id, name:tube.name.trim().slice(0,60), capacity:tube.capacity };
+      });
+      const itemIds = new Set();
+      const allowedUnits = new Set([1,2,3,5]);
+      const items = input.items.map((item,index) => {
+        if (!item || typeof item.id !== 'string' || !item.id || itemIds.has(item.id)) throw new Error(`Item ${index+1} has an invalid or duplicate ID`);
+        if (typeof item.title !== 'string' || !item.title.trim()) throw new Error(`Item ${index+1} needs a title`);
+        if (!allowedUnits.has(item.units)) throw new Error(`“${item.title}” has an unsupported size`);
+        if (!['orange','grey'].includes(item.type)) throw new Error(`“${item.title}” has an invalid type`);
+        if (item.location !== 'pool' && !tubeIds.has(item.location)) throw new Error(`“${item.title}” refers to a missing tube`);
+        itemIds.add(item.id);
+        return { id:item.id, title:item.title.trim().slice(0,60), units:item.units, type:item.type, location:item.location };
+      });
+      tubes.forEach(tube => {
+        const amount = items.filter(item => item.location === tube.id).reduce((sum,item) => sum + item.units, 0);
+        if (amount > tube.capacity) throw new Error(`“${tube.name}” is over capacity`);
+      });
+      return { tubes, items };
+    }
+    function used(tubeId, excludeId = null) { return state.items.filter(i => i.location === tubeId && i.id !== excludeId).reduce((n,i) => n+i.units, 0); }
+    function tubeCapacity(tubeId) { return state.tubes.find(t => t.id === tubeId)?.capacity || CAPACITY; }
+    function canFit(tubeId, units, excludeId = null) { return used(tubeId, excludeId) + units <= tubeCapacity(tubeId); }
+
+    function render() {
+      poolItems.innerHTML = '';
+      state.items.filter(i => i.location === 'pool').forEach(i => poolItems.appendChild(card(i)));
+      if (!poolItems.children.length) poolItems.innerHTML = '<div class="helper" style="grid-column:1/-1;text-align:center;margin-top:70px">The intake is clear — add more work when you’re ready.</div>';
+
+      tubesEl.innerHTML = '';
+      state.tubes.forEach(tube => {
+        const amount = used(tube.id); const capacity = tube.capacity;
+        const col = document.createElement('div');
+        col.className = 'tube-column';
+        col.innerHTML = `<div class="tube-top"><div class="tube-title-row"><input class="tube-name" aria-label="Tube name" value="${escapeHtml(tube.name)}" data-tube-name="${tube.id}"><span title="${capacity-amount} units free">${amount === capacity ? '●' : '○'}</span><button class="tube-remove" type="button" data-remove-tube="${tube.id}" ${state.tubes.length===1?'disabled':''} title="${state.tubes.length===1?'At least one tube is required':'Remove tube'}" aria-label="Remove ${escapeHtml(tube.name)}">×</button></div><div class="capacity-row"><div class="capacity ${amount===capacity?'full':''}"><strong>${amount}</strong> of ${capacity} units</div><div class="height-controls" aria-label="Change ${escapeHtml(tube.name)} height"><button type="button" data-capacity-down="${tube.id}" ${capacity<=Math.max(1,amount)?'disabled':''} title="Remove one unit of capacity">−</button><button type="button" data-capacity-up="${tube.id}" title="Add one unit of capacity">+</button></div></div></div>`;
+        const shell = document.createElement('div');
+        shell.className = 'tube-shell'; shell.dataset.zone = tube.id; shell.style.setProperty('--capacity', capacity);
+        const inTube = state.items.filter(i => i.location === tube.id).sort((a,b) => (a.type==='grey') - (b.type==='grey'));
+        if (!inTube.length) shell.innerHTML = '<div class="empty-tube">Drop work here</div>';
+        inTube.forEach(i => shell.appendChild(card(i)));
+        col.appendChild(shell);
+        tubesEl.appendChild(col);
+      });
+
+      const scheduled = state.items.filter(i=>i.location!=='pool').reduce((n,i)=>n+i.units,0);
+      const totalCapacity = state.tubes.reduce((n,t) => n + t.capacity, 0);
+      $('#capacityPct').textContent = `${Math.round(scheduled / totalCapacity * 100)}% capacity used`;
+      $('#tableCapacityPct').textContent = `${Math.round(scheduled / totalCapacity * 100)}% capacity used`;
+      const totalDemand = state.items.reduce((n,i) => n + i.units, 0);
+      const systemLoad = Math.round(totalDemand / totalCapacity * 100);
+      $('#systemLoadPct').textContent = `${systemLoad}%`;
+      $('#systemLoadLabel').textContent = systemLoad > 100 ? `${systemLoad-100}% over capacity` : systemLoad === 100 ? 'capacity exactly matched' : `${100-systemLoad}% headroom`;
+      $('#systemLoad').classList.toggle('over', systemLoad > 100);
+      renderTables();
+      save(); bindDropZones();
+    }
+
+    function allocationPercentages(parts, total) {
+      const raw = parts.map(n => n / total * 100);
+      const result = raw.map(Math.floor);
+      let remaining = 100 - result.reduce((a,b) => a+b, 0);
+      const order = raw.map((n,i) => ({i, fraction:n-Math.floor(n)})).sort((a,b) => b.fraction-a.fraction);
+      for (let i=0; i<remaining; i++) result[order[i % order.length].i] += 1;
+      return result;
+    }
+
+    function renderTables() {
+      const content = $('#tableContent');
+      let html = '<div class="table-section-title">Tube capacity</div><table class="data-table"><thead><tr><th>Tube</th><th>Work item</th><th>Type</th><th class="units-cell">Units</th><th>Allocation</th></tr></thead><tbody>';
+      state.tubes.forEach(tube => {
+        const items = state.items.filter(i => i.location === tube.id).sort((a,b) => (a.type==='grey') - (b.type==='grey'));
+        const free = tube.capacity - used(tube.id);
+        const parts = [...items.map(i => i.units), free];
+        const percentages = allocationPercentages(parts, tube.capacity);
+        items.forEach((item,index) => {
+          html += `<tr>${index===0?`<td class="tube-cell" rowspan="${items.length+2}">${escapeHtml(tube.name)}<div class="helper">${tube.capacity} units</div></td>`:''}<td>${escapeHtml(item.title)}</td><td><span class="type-pill ${item.type==='grey'?'grey':''}">${item.type==='grey'?'Overhead':'Project'}</span></td><td class="units-cell">${item.units}</td><td>${percentages[index]}%</td></tr>`;
+        });
+        if (!items.length) html += `<tr><td class="tube-cell" rowspan="2">${escapeHtml(tube.name)}<div class="helper">${tube.capacity} units</div></td><td>Unused capacity</td><td><span class="type-pill free">Available</span></td><td class="units-cell">${free}</td><td>100%</td></tr>`;
+        else html += `<tr class="unused-row"><td>Unused capacity</td><td><span class="type-pill free">Available</span></td><td class="units-cell">${free}</td><td>${percentages[percentages.length-1]}%</td></tr>`;
+        html += `<tr class="total-row"><td>Total capacity</td><td></td><td class="units-cell">${tube.capacity}</td><td>100%</td></tr>`;
+      });
+      html += '</tbody></table>';
+
+      const pool = state.items.filter(i => i.location === 'pool');
+      html += '<div class="table-section-title">Unscheduled work</div><table class="data-table"><thead><tr><th>Work item</th><th>Type</th><th class="units-cell">Units</th></tr></thead><tbody>';
+      if (pool.length) pool.forEach(item => { html += `<tr><td>${escapeHtml(item.title)}</td><td><span class="type-pill ${item.type==='grey'?'grey':''}">${item.type==='grey'?'Overhead':'Project'}</span></td><td>${item.units}</td></tr>`; });
+      else html += '<tr><td colspan="3" class="helper">No work is waiting in the hopper.</td></tr>';
+      html += '</tbody></table>';
+      content.innerHTML = html;
+    }
+
+    function card(item) {
+      const el = document.createElement('div');
+      el.className = `card ${item.type}`; el.dataset.id = item.id; el.style.setProperty('--units', item.units);
+      el.draggable = true;
+      el.innerHTML = `<span class="card-title">${escapeHtml(item.title)}</span><span class="units-chip" title="${item.units} unit${item.units>1?'s':''}">${item.units}</span>${item.type==='grey'?'<span class="lock" title="Overhead / maintenance work">◆</span>':''}`;
+      el.addEventListener('dragstart', e => { draggedId=item.id; el.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain', item.id); });
+      el.addEventListener('dragend', () => { draggedId=null; el.classList.remove('dragging'); document.querySelectorAll('.drag-over').forEach(x=>x.classList.remove('drag-over')); });
+      el.addEventListener('click', e => { e.stopPropagation(); openMenu(item.id, e.clientX, e.clientY); });
+      return el;
+    }
+
+    function bindDropZones() {
+      document.querySelectorAll('[data-zone]').forEach(zone => {
+        zone.addEventListener('dragover', e => { if (!draggedId) return; e.preventDefault(); zone.classList.add('drag-over'); e.dataTransfer.dropEffect='move'; });
+        zone.addEventListener('dragleave', e => { if (!zone.contains(e.relatedTarget)) zone.classList.remove('drag-over'); });
+        zone.addEventListener('drop', e => {
+          e.preventDefault(); zone.classList.remove('drag-over');
+          const item=state.items.find(i=>i.id===draggedId); if (!item) return;
+          const target=zone.dataset.zone;
+          if (target !== 'pool' && !canFit(target,item.units,item.id)) { const free=tubeCapacity(target)-used(target,item.id); reject(zone, `That tube only has ${free} unit${free===1?'':'s'} free`); return; }
+          item.location=target; toast(target==='pool'?'Returned to funnel':'Work scheduled'); render();
+        });
+      });
+    }
+
+    function openMenu(id,x,y) {
+      activeMenuId=id; menu.classList.add('open');
+      menu.style.left=Math.min(x,innerWidth-185)+'px'; menu.style.top=Math.min(y,innerHeight-270)+'px';
+      const item=state.items.find(i=>i.id===id);
+      menu.querySelector('[data-action="return"]').style.display = item.location!=='pool' ? 'block' : 'none';
+      menu.querySelectorAll('[data-action^="size"]').forEach(b=>b.style.fontWeight=b.dataset.action===`size-${item.units}`?'800':'400');
+    }
+    function closeMenu(){ menu.classList.remove('open'); activeMenuId=null; }
+
+    menu.addEventListener('click', e => {
+      const action=e.target.dataset.action; if(!action||!activeMenuId)return;
+      const item=state.items.find(i=>i.id===activeMenuId); const id=activeMenuId; closeMenu();
+      if(action==='remove'){ state.items=state.items.filter(i=>i.id!==id); render(); toast('Work removed'); return; }
+      if(action==='return'){ item.location='pool'; render(); toast('Moved back to hopper'); return; }
+      if(action==='rename'){ openModal(item); return; }
+      if(action.startsWith('size-')){
+        const units=Number(action.slice(-1));
+        if(item.location!=='pool'&&!canFit(item.location,units,item.id)){ reject(document.querySelector(`[data-zone="${item.location}"]`),'Resize blocked — the tube would overflow'); return; }
+        item.units=units; render(); toast(`Resized to ${units} unit${units>1?'s':''}`);
+      }
+    });
+
+    document.addEventListener('click', closeMenu);
+    document.addEventListener('keydown', e => { if(e.key==='Escape'){closeMenu();closeModal();} });
+    document.addEventListener('change', e => {
+      if(e.target.dataset.tubeName){ const tube=state.tubes.find(t=>t.id===e.target.dataset.tubeName); tube.name=e.target.value.trim()||'Untitled tube'; render(); }
+    });
+    function setViewMode(mode) {
+      const tableMode = mode === 'table';
+      $('#visualView').hidden = tableMode;
+      $('#tableView').hidden = !tableMode;
+      $('#viewMode').value = tableMode ? 'table' : 'visual';
+      localStorage.setItem('flowline-view-mode', tableMode ? 'table' : 'visual');
+    }
+    $('#viewMode').addEventListener('change', e => setViewMode(e.target.value));
+    document.addEventListener('click', e => {
+      const tubeId = e.target.dataset.capacityUp || e.target.dataset.capacityDown;
+      if (!tubeId) return;
+      const tube = state.tubes.find(t => t.id === tubeId);
+      if (e.target.dataset.capacityUp) tube.capacity += 1;
+      else if (tube.capacity > Math.max(1, used(tubeId))) tube.capacity -= 1;
+      else { toast('Move or resize work before shrinking this tube'); return; }
+      render(); toast(`Tube capacity set to ${tube.capacity} units`);
+    });
+    $('#addTubeBtn').addEventListener('click', () => {
+      const id = 'tube-' + Date.now();
+      state.tubes.push({ id, name: `New tube ${state.tubes.length + 1}`, capacity: 8 });
+      render(); toast('Tube added');
+      setTimeout(() => document.querySelector(`[data-tube-name="${id}"]`)?.select(), 0);
+    });
+    $('#copyLinkBtn').addEventListener('click', async () => {
+      try {
+        if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(location.href);
+        else {
+          const field = document.createElement('textarea'); field.value = location.href;
+          field.style.position='fixed'; field.style.opacity='0'; document.body.appendChild(field);
+          field.select(); document.execCommand('copy'); field.remove();
+        }
+        toast('Board link copied');
+      } catch { toast('Could not copy automatically · copy the browser URL'); }
+    });
+    $('#exportBtn').addEventListener('click', () => {
+      const payload = JSON.stringify({ format:'flowline-board', version:1, exportedAt:new Date().toISOString(), ...state }, null, 2);
+      const url = URL.createObjectURL(new Blob([payload], {type:'application/json'}));
+      const link = document.createElement('a');
+      link.href = url; link.download = `flowline-board-${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0); toast('Board exported');
+    });
+    $('#importBtn').addEventListener('click', () => { $('#importInput').value=''; $('#importInput').click(); });
+    $('#importInput').addEventListener('change', async e => {
+      const file = e.target.files?.[0]; if (!file) return;
+      try {
+        const imported = validatedState(JSON.parse(await file.text()));
+        if (!confirm('Import this board? Your current board will be replaced.')) return;
+        state = imported; render(); toast('Board imported');
+      } catch (error) { toast(`Import failed · ${error.message}`); }
+    });
+    document.addEventListener('click', e => {
+      const tubeId = e.target.dataset.removeTube;
+      if (!tubeId || state.tubes.length === 1) return;
+      const tube = state.tubes.find(t => t.id === tubeId);
+      const count = state.items.filter(i => i.location === tubeId).length;
+      if (!confirm(`Remove “${tube.name}”? ${count ? `${count} work item${count===1?'':'s'} will return to the hopper.` : 'It is empty.'}`)) return;
+      state.items.forEach(item => { if (item.location === tubeId) item.location = 'pool'; });
+      state.tubes = state.tubes.filter(t => t.id !== tubeId);
+      render(); toast(`Tube removed${count ? ` · ${count} item${count===1?'':'s'} returned` : ''}`);
+    });
+
+    function openModal(item=null, location=null, type=null){
+      editingId=item?.id||null; forcedLocation=location; forcedType=type;
+      $('#modalTitle').textContent=item?'Edit work':'Add work';
+      $('#workTitle').value=item?.title||''; $('#workUnits').value=item?.units||1; $('#workType').value=item?.type||type||'orange';
+      $('#workType').disabled=!!type; $('#typeField').style.display=item||type?'none':'block';
+      const locations=[{id:'pool',name:'Work funnel'},...state.tubes];
+      $('#workLocation').innerHTML=locations.map(l=>`<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
+      $('#workLocation').value=item?.location||location||'pool';
+      $('#locationField').style.display=item||location?'none':'block';
+      modal.classList.add('open'); setTimeout(()=>$('#workTitle').focus(),50);
+    }
+    function closeModal(){ modal.classList.remove('open'); editingId=null; forcedLocation=null; forcedType=null; }
+    $('#addBtn').addEventListener('click',()=>openModal());
+    $('#addProjectBtn').addEventListener('click',()=>openModal(null,'pool','orange'));
+    $('#addOverheadBtn').addEventListener('click',()=>openModal(null,'pool','grey'));
+    $('#cancelBtn').addEventListener('click',closeModal);
+    modal.addEventListener('click',e=>{if(e.target===modal)closeModal()});
+    $('#workForm').addEventListener('submit', e => {
+      e.preventDefault(); const title=$('#workTitle').value.trim(); const units=Number($('#workUnits').value);
+      const wasEditing = !!editingId;
+      if(editingId){ const item=state.items.find(i=>i.id===editingId); if(item.location!=='pool'&&!canFit(item.location,units,item.id)){ reject(document.querySelector(`[data-zone="${item.location}"]`),'Resize blocked — the tube would overflow'); closeModal(); return; } item.title=title; item.units=units; }
+      else { const type=forcedType||$('#workType').value; let location=forcedLocation||$('#workLocation').value; if(location!=='pool'&&!canFit(location,units)){ toast('That tube does not have enough room'); return; } state.items.push({id:'w'+Date.now(),title,units,type,location}); }
+      closeModal(); render(); toast(wasEditing?'Work updated':'Work added');
+    });
+    $('#resetBtn').addEventListener('click',()=>{ if(confirm('Reset to one empty tube? Your current board will be replaced.')){state=clone(defaults);render();toast('Board reset');} });
+
+    function reject(el,msg){ el?.classList.add('invalid'); setTimeout(()=>el?.classList.remove('invalid'),300); toast(msg); }
+    let toastTimer; function toast(msg){ const el=$('#toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2400); }
+    function escapeHtml(s){ const d=document.createElement('div');d.textContent=s;return d.innerHTML; }
+    window.addEventListener('hashchange', () => {
+      try { const shared=stateFromUrl(); if(shared){state=shared;render();toast('Board loaded from URL');} }
+      catch { toast('This board link is invalid'); }
+    });
+    render();
+    setViewMode(localStorage.getItem('flowline-view-mode') || 'visual');
+  </script>
+</body>
+</html>
