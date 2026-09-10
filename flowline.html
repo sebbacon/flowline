@@ -371,6 +371,31 @@
       items: []
     };
 
+    const originalPreset = {
+      tubes: [
+        { id:'os-nhse', name:'OS-NHSE production service', capacity:10 },
+        { id:'other-tech', name:'Other tech group capacity', capacity:7 }
+      ],
+      items: [
+        { id:'p1', title:'Trends & Variation support', units:1, type:'orange', location:'pool' },
+        { id:'p2', title:'HDRS Data Driver Projects', units:1, type:'orange', location:'pool' },
+        { id:'p3', title:'OS International', units:1, type:'orange', location:'pool' },
+        { id:'p4', title:'OS Schools Project', units:1, type:'orange', location:'pool' },
+        { id:'p5', title:'OS in Indonesia', units:1, type:'orange', location:'pool' },
+        { id:'p6', title:'OP Workbench', units:1, type:'orange', location:'pool' },
+        { id:'p7', title:'Improvements to Open Prescribing', units:1, type:'orange', location:'pool' },
+        { id:'p8', title:'Variables Library Exploration', units:1, type:'orange', location:'pool' },
+        { id:'p9', title:'OS-NHSE: Security audit', units:1, type:'orange', location:'pool' },
+        { id:'p10', title:'HDRS Infrastructure projects (applications submitted)', units:2, type:'orange', location:'pool' },
+        { id:'t1a', title:'OS-NHSE: Get EMIS running', units:1, type:'orange', location:'os-nhse' },
+        { id:'t1b', title:'OS-NHSE: Enable sustainable growth of the service', units:3, type:'orange', location:'os-nhse' },
+        { id:'t1c', title:'Operating OpenSAFELY -NHSE', units:5, type:'grey', location:'os-nhse' },
+        { id:'t2a', title:'HDRS Infrastructure projects (funding confirmed)', units:1, type:'orange', location:'other-tech' },
+        { id:'t2b', title:'Operating Open Prescribing v1', units:1, type:'grey', location:'other-tech' },
+        { id:'t2c', title:'BI operations (Bennett Admins, website etc)', units:1, type:'grey', location:'other-tech' }
+      ]
+    };
+
     let state = loadState();
     let draggedId = null;
     let activeMenuId = null;
@@ -398,7 +423,9 @@
       return validatedState(JSON.parse(new TextDecoder().decode(bytes)));
     }
     function stateFromUrl() {
-      const encoded = new URLSearchParams(location.hash.slice(1)).get('board');
+      const params = new URLSearchParams(location.hash.slice(1));
+      if (params.get('preset') === 'original') return validatedState(clone(originalPreset));
+      const encoded = params.get('board');
       return encoded ? decodeBoard(encoded) : null;
     }
     function loadState() {
